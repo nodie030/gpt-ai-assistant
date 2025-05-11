@@ -1,4 +1,5 @@
 import { replyMessage } from '../utils/index.js';
+import cycuHandler from './handlers/cycu.js';
 import {
   activateHandler,
   commandHandler,
@@ -14,6 +15,7 @@ import {
   searchHandler,
   talkHandler,
   versionHandler,
+  cycuHandler,
 } from './handlers/index.js';
 import Context from './context.js';
 import Event from './models/event.js';
@@ -37,6 +39,7 @@ const handleContext = async (context) => (
   || searchHandler(context)
   || versionHandler(context)
   || talkHandler(context)
+  || cycuHandler(context)
   || context
 );
 
