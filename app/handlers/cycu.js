@@ -19,6 +19,11 @@ export default async function cycuHandler(context) {
     }
   });
 
+if (courses.length === 0 && qas.length === 0) {
+    await context.sendText('❌ 很抱歉，資料庫中找不到與您問題相關的課程或問答。請重新輸入其他關鍵字。');
+    return true;
+}
+  
   // 查詢 QA 資料
   const { data: qas } = await axios.get(`${SUPABASE_URL}/rest/v1/qa_list?select=*`, {
     headers: {
@@ -51,7 +56,7 @@ export default async function cycuHandler(context) {
   const gptRes = await axios.post('https://api.openai.com/v1/chat/completions', {
     model: 'gpt-4',
     messages: [
-      { role: 'system', content: '你是中原大學的課程與QA小助手，叫做「通通夠」請根據以下內容回覆問題。' },
+      { role: 'system', content: '你是中原大學的課程與QA小助手，叫做「通通夠」。以你只能根據以下資料回答問題，不能發揮或猜測。' },
       { role: 'user', content: combined }
     ]
   }, {
