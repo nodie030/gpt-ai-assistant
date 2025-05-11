@@ -21,7 +21,8 @@ const check = (context) => (
  * @param {Context} context
  * @returns {Promise<Context>}
  */
-const exec = async (context) => {
+const exec = (context) => check(context) && (
+  async () => {
     if (!check(context)) return context;
     const prompt = getPrompt(context.userId);
     const userInput = context.event.message.text;
@@ -101,6 +102,6 @@ const exec = async (context) => {
     }
     return context;
   }
-};
+)();
 
 export default exec;
