@@ -82,4 +82,4 @@ const exec = async (context) => {
   return context;
 };
 
-export default exec;
+export { check, exec }; // ✅ 匯出為標準物件
