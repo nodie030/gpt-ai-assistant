@@ -1,6 +1,5 @@
 import { replyMessage } from '../utils/index.js';
 import {
-  cycuHandler,
   activateHandler,
   commandHandler,
   continueHandler,
@@ -24,8 +23,7 @@ import Event from './models/event.js';
  * @returns {Promise<Context>}
  */
 const handleContext = async (context) => (
-  cycuHandler(context)
-  || activateHandler(context)
+  activateHandler(context)
   || commandHandler(context)
   || continueHandler(context)
   || deactivateHandler(context)
