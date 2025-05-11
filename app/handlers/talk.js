@@ -42,23 +42,23 @@ const exec = async (context) => {
         headers,
         params: {
             select: 'title,time',
-            or: keywordFilters
+            or: `(${keywordFilters})`
         }
     });
     const { data: qas } = await axios.get(`${SUPABASE_URL}/rest/v1/qa_list`, {
         headers,
         params: {
             select: 'question,answer',
-            or: questionFilters
+            or: `(${questionFilters})`
         }
     });
 
     if ((courses && courses.length > 0) || (qas && qas.length > 0)) {
         let contextText = '';
         if (courses.length > 0) {
-            contextText += '【通識課程】\n';
+            contextText += '【通識活動】\n';
             courses.forEach(c => {
-                contextText += `課程名稱：${c.title}\n上課時間：${c.time}\n\n`;
+                contextText += `通識活動：${c.title}\n時間：${c.time}\n\n`;
           });
       }
       if (qas.length > 0) {
@@ -70,7 +70,7 @@ const exec = async (context) => {
 
       const { text } = await generateCompletion({
           messages: [
-              { role: 'system', content: '你是中原大學的課程助理，只能根據以下提供的課程與QA資訊回答問題，不可自由發揮，若找不到請回覆「查無資料」即可。' },
+              { role: 'system', content: '你是中原大學的課程助理名叫【通通夠】，只能根據以下提供的課程與QA資訊回答問題，不可自由發揮，若找不到請回覆「查無資料」即可。' },
               { role: ROLE_HUMAN, content: userInput },
               { role: ROLE_AI, content: contextText },
           ]
