@@ -39,6 +39,8 @@ const exec = (context) => check(context) && (
     const keywordFilters = keywords.map(k => `title.ilike.*${k}*`).join(',');
     const questionFilters = keywords.map(k => `question.ilike.*${k}*`).join(',');
 
+    console.log('[測試連線] userInput:', userInput);
+
     const { data: courses } = await axios.get(`${SUPABASE_URL}/rest/v1/courses`, {
         headers,
         params: {
@@ -69,13 +71,13 @@ const exec = (context) => check(context) && (
           });
       }
 
-      const { text } = await generateCompletion({
-          messages: [
-              { role: 'system', content: '你是中原大學的課程助理名叫【通通夠】，只能根據以下提供的課程與QA資訊回答問題，不可自由發揮，若找不到請回覆「查無資料」即可。' },
-              { role: ROLE_HUMAN, content: userInput },
-              { role: ROLE_AI, content: contextText },
-          ]
-      });
+      const gptPrompt = getPrompt(context.userId);
+      gptPrompt.reset();
+      gptPrompt.write(ROLE_HUMAN, userInput);
+      gptPrompt.write(ROLE_AI, contextText);
+
+      const { text } = await generateCompletion({ prompt: gptPrompt });
+      
       console.log('[SUPABASE] 活動數量:', activities.length);
       console.log('[SUPABASE] QA 數量:', qas.length);
 
@@ -100,9 +102,6 @@ const exec = (context) => check(context) && (
       updateHistory(context.id, (history) => history.write(config.BOT_NAME, text));
       const actions = isFinishReasonStop ? [COMMAND_BOT_FORGET] : [COMMAND_BOT_CONTINUE];
       context.pushText(text, actions);
-      console.log('[SUPABASE] 活動數量:', activities.length);
-      console.log('[SUPABASE] QA 數量:', qas.length);
-
     } catch (err) {
       context.pushError(err);
     }
