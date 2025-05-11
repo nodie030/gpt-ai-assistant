@@ -76,6 +76,9 @@ const exec = (context) => check(context) && (
               { role: ROLE_AI, content: contextText },
           ]
       });
+      console.log('[SUPABASE] 活動數量:', activities.length);
+      console.log('[SUPABASE] QA 數量:', qas.length);
+
       await context.sendText(text);
       return context;
     }
@@ -97,6 +100,9 @@ const exec = (context) => check(context) && (
       updateHistory(context.id, (history) => history.write(config.BOT_NAME, text));
       const actions = isFinishReasonStop ? [COMMAND_BOT_FORGET] : [COMMAND_BOT_CONTINUE];
       context.pushText(text, actions);
+      console.log('[SUPABASE] 活動數量:', activities.length);
+      console.log('[SUPABASE] QA 數量:', qas.length);
+
     } catch (err) {
       context.pushError(err);
     }
