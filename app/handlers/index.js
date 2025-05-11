@@ -1,5 +1,3 @@
-import * as cycuHandler from './cycu.js'; // ✅ 匯入整包物件
-
 import activateHandler from './activate.js';
 import commandHandler from './command.js';
 import continueHandler from './continue.js';
@@ -16,7 +14,6 @@ import talkHandler from './talk.js';
 import versionHandler from './version.js';
 
 export {
-  cycuHandler,
   activateHandler,
   commandHandler,
   continueHandler,
