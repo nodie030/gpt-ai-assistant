@@ -82,4 +82,4 @@ const exec = async (context) => {
   return context;
 };
 
-export default { check, exec };
+export default exec;
