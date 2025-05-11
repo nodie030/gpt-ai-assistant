@@ -1,0 +1,67 @@
+// ✅ 新增：查詢中原課程與 QA，整合 GPT 回應
+import axios from 'axios';
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_API_KEY = process.env.SUPABASE_API_KEY;
+const GPT_API_KEY = process.env.GPT_API_KEY;
+
+export default async function cycuHandler(context) {
+  const message = context.event.message.text;
+
+  // 查詢課程資料
+  const { data: courses } = await axios.get(`${SUPABASE_URL}/rest/v1/courses?select=*`, {
+    headers: {
+      apikey: SUPABASE_API_KEY,
+      Authorization: `Bearer ${SUPABASE_API_KEY}`
+    },
+    params: {
+      course_name: `ilike.%${message}%`
+    }
+  });
+
+  // 查詢 QA 資料
+  const { data: qas } = await axios.get(`${SUPABASE_URL}/rest/v1/qa_list?select=*`, {
+    headers: {
+      apikey: SUPABASE_API_KEY,
+      Authorization: `Bearer ${SUPABASE_API_KEY}`
+    },
+    params: {
+      question: `ilike.%${message}%`
+    }
+  });
+
+  // 組合查詢結果
+  let combined = '';
+  if (courses.length > 0) {
+    combined += '【活動資訊】\\n';
+    courses.forEach(c => {
+      combined += `單位：${c.unit}\\n活動：${c.title}\\n時間：${c.time}\\n\\n`;
+    });
+  }
+  if (qas.length > 0) {
+    combined += '【常見問答】\\n';
+    qas.forEach(q => {
+      combined += `Q：${q.question}\\nA：${q.answer}\\n\\n`;
+    });
+  }
+
+  if (!combined) return false; // 無資料，不處理
+
+  // 串接 GPT 回應
+  const gptRes = await axios.post('https://api.openai.com/v1/chat/completions', {
+    model: 'gpt-4',
+    messages: [
+      { role: 'system', content: '你是中原大學的課程與QA小助手，叫做「通通夠」請根據以下內容回覆問題。' },
+      { role: 'user', content: combined }
+    ]
+  }, {
+    headers: {
+      Authorization: `Bearer ${GPT_API_KEY}`,
+      'Content-Type': 'application/json'
+    }
+  });
+
+  const answer = gptRes.data.choices[0].message.content;
+  await context.sendText(answer);
+  return true;
+}
