@@ -1,72 +1,85 @@
-// ✅ 新增：查詢中原課程與 QA，整合 GPT 回應
-import axios from 'axios';
+import config from '../../config/index.js';
+import { ROLE_AI, ROLE_HUMAN } from '../../services/openai.js';
+import { generateCompletion } from '../../utils/index.js';
+import Context from '../context.js';
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_API_KEY = process.env.SUPABASE_API_KEY;
-const GPT_API_KEY = process.env.GPT_API_KEY;
+// ✅ 只有在啟動狀態時處理（你也可加其它條件）
+const check = (context) => context.source.bot.isActivated;
 
-export default async function cycuHandler(context) {
-  const message = context.event.message.text;
+// ✅ 主執行函式
+const exec = async (context) => {
+  const userInput = context.event.message.text;
 
-  // 查詢課程資料
-  const { data: courses } = await axios.get(`${SUPABASE_URL}/rest/v1/courses?select=*`, {
-    headers: {
-      apikey: SUPABASE_API_KEY,
-      Authorization: `Bearer ${SUPABASE_API_KEY}`
-    },
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_API_KEY = process.env.SUPABASE_API_KEY;
+
+  const headers = {
+    apikey: SUPABASE_API_KEY,
+    Authorization: `Bearer ${SUPABASE_API_KEY}`,
+  };
+
+  const axios = (await import('axios')).default;
+
+  // 🔍 將 userInput 分詞（空格或標點符號）模糊處理組合條件
+  const keywords = userInput.split(/\s+|[。！？\?\!]/).filter(k => k.length > 1);
+  const keywordFilters = keywords.map(k => `title.ilike.*${k}*`).join(',');
+  const questionFilters = keywords.map(k => `question.ilike.*${k}*`).join(',');
+
+  // 🔍 查詢課程資料
+  const { data: courses } = await axios.get(`${SUPABASE_URL}/rest/v1/courses`, {
+    headers,
     params: {
-      title: `ilike.%${message}%`
+      select: 'title,time',
+      or: keywordFilters
     }
   });
-  
-  // 查詢 QA 資料
-  const { data: qas } = await axios.get(`${SUPABASE_URL}/rest/v1/qa_list?select=question,answer`, {
-    headers: {
-      apikey: SUPABASE_API_KEY,
-      Authorization: `Bearer ${SUPABASE_API_KEY}`
-    },
+  console.log('[SUPABASE] courses:', courses);
+  // 🔍 查詢 QA 資料
+  const { data: qas } = await axios.get(`${SUPABASE_URL}/rest/v1/qa_list`, {
+    headers,
     params: {
-      question: `ilike.%${message}%`
+      select: 'question,answer',
+      or: questionFilters
     }
   });
+  console.log('[SUPABASE] qas:', qas);
 
-if (courses.length === 0 && qas.length === 0) {
+  // ❌ 無資料就結束
+  if ((!courses || courses.length === 0) && (!qas || qas.length === 0)) {
     await context.sendText('❌ 很抱歉，資料庫中找不到與您問題相關的課程或問答。');
-    return true;
-}
-  
-  // 組合查詢結果
-  let combined = '';
+    return context;
+  }
+
+  // ✅ 有資料 → 組合 prompt
+  let contextText = '';
   if (courses.length > 0) {
-    combined += '【活動資訊】\\n';
+    contextText += '【通識活動】\n';
     courses.forEach(c => {
-      combined += `活動：${c.title}\\n時間：${c.time}\\n\\n`;
+      contextText += `活動名稱：${c.title}\n時間：${c.time}\n\n`;
     });
   }
   if (qas.length > 0) {
-    combined += '【常見問答】\\n';
+    contextText += '【常見問答】\n';
     qas.forEach(q => {
-      combined += `Q：${q.question}\\nA：${q.answer}\\n\\n`;
+      contextText += `Q：${q.question}\nA：${q.answer}\n\n`;
     });
   }
 
-  if (!combined) return false; // 無資料，不處理
+  const prompt = [
+    { role: ROLE_HUMAN, content: userInput },
+    { role: ROLE_AI, content: contextText },
+  ];
 
-  // 串接 GPT 回應
-  const gptRes = await axios.post('https://api.openai.com/v1/chat/completions', {
-    model: 'gpt-4',
+  // 🎯 嚴格指示 GPT：只能根據 contextText 回答
+  const { text } = await generateCompletion({
     messages: [
-      { role: 'system', content: '你是中原大學的課程與QA小助手，叫做「通通夠」。你只能根據下列資料回答問題，若問題與下列資料無關，請直接回覆「很抱歉，我無法回答此問題」。禁止自由發揮。' },
-      { role: 'user', content: combined }
-    ]
-  }, {
-    headers: {
-      Authorization: `Bearer ${GPT_API_KEY}`,
-      'Content-Type': 'application/json'
-    }
+      { role: 'system', content: '你是中原大學的課程助理名叫【通通夠】，只能根據以下提供的課程與QA資訊回答問題，不可自由發揮，若找不到請回覆「查無資料」即可。' },
+      ...prompt,
+    ],
   });
 
-  const answer = gptRes.data.choices[0].message.content;
-  await context.sendText(answer);
-  return true;
-}
+  await context.sendText(text);
+  return context;
+};
+
+export { check, exec };
